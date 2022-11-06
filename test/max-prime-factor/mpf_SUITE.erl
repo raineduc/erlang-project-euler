@@ -1,7 +1,9 @@
 -module(mpf_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--compile(export_all).
+
+-export([all/0, init_per_testcase/2, end_per_testcase/2]).
+-export([regular_data_tests/1, regular_data_tests_with_map/1, incorrect_data_tests/1]).
 
 all() -> [regular_data_tests, regular_data_tests_with_map, incorrect_data_tests].
 

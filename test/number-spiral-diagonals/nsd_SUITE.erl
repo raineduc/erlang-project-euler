@@ -1,7 +1,9 @@
 -module(nsd_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
--compile(export_all).
+
+-export([all/0, init_per_testcase/2, end_per_testcase/2]).
+-export([odd_number_tests/1, even_number_tests/1, negative_and_zero_tests/1]).
 
 all() -> [odd_number_tests, even_number_tests, negative_and_zero_tests].
 
