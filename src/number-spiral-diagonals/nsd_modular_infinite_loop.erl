@@ -25,7 +25,7 @@ take_quads(Count) ->
 
 take_next_quad(Count, QuadList) when Count > 0 ->
   receive
-    [N1, N2, N3, N4] -> [N4, N3, N2, N1 | QuadList]
+    [N1, N2, N3, N4] -> take_next_quad(Count - 1, [N4, N3, N2, N1 | QuadList])
   end;
 take_next_quad(_, QuadList) -> QuadList.
 
