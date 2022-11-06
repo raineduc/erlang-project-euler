@@ -28,6 +28,7 @@ test_odd([Case | Tail]) ->
   Expected = nsd_monolith_tailed:sum_diagonals(Arg),
   Expected = nsd_modular:sum_diagonals(Arg),
   Expected = nsd_modular_with_map:sum_diagonals(Arg),
+  Expected = nsd_modular_infinite_loop:sum_diagonals(Arg),
   test_odd(Tail);
 test_odd([]) -> ok.
 
@@ -36,6 +37,7 @@ test_incorrect_case([Case | Tail]) ->
   ?assertError(function_clause, nsd_monolith_tailed:sum_diagonals(Case)),
   ?assertError(function_clause, nsd_modular:sum_diagonals(Case)),
   ?assertError(function_clause, nsd_modular_with_map:sum_diagonals(Case)),
+  ?assertError(function_clause, nsd_modular_infinite_loop:sum_diagonals(Case)),
   test_incorrect_case(Tail);
 test_incorrect_case([]) -> ok.
 

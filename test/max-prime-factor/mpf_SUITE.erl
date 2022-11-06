@@ -28,6 +28,7 @@ test_regular_case([Case | Tail]) ->
   Expected = mpf_monolith:find_mpf(Arg),
   Expected = mpf_monolith_tailed:find_mpf(Arg),
   Expected = mpf_modular:find_mpf(Arg),
+  Expected = mpf_modular_infinite_loop:find_mpf(Arg),
   test_regular_case(Tail);
 test_regular_case([]) -> ok.
 
