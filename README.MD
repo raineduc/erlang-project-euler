@@ -31,7 +31,7 @@ What is the largest prime factor of the number 600851475143?
 
 ### [Number spiral diagonals](https://projecteuler.net/problem=28)
 
-#### Problem 26
+#### Problem 28
 
 Starting with the number 1 and moving to the right in a clockwise direction a 5 by 5 spiral is formed as follows:
 
