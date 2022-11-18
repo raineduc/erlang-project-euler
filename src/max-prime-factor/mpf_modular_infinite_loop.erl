@@ -24,6 +24,8 @@ producer() ->
     receive
         {Sender, Number} ->
             iterate_seq(Number, 2, Sender)
+    after 5000 ->
+        exit(timeout)
     end.
 
 iterate_seq(RestNumber, PrimeFactor, SenderPid)
@@ -51,4 +53,6 @@ fold_seq(Pid, Acc) ->
             fold_seq(Pid, max(Acc, X));
         finished ->
             Acc
+    after 5000 ->
+        exit(timeout)
     end.
