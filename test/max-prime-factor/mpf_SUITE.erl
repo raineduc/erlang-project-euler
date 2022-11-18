@@ -17,7 +17,7 @@ init_per_testcase(regular_data_tests_with_map, Config) ->
     Cases = [{2, 2}, {3, 3}, {4, 2}, {11, 11}, {476, 17}, {13195, 29}],
     [{regular_cases_with_map, Cases} | Config];
 init_per_testcase(incorrect_data_tests, Config) ->
-    Cases = [2, 3],
+    Cases = [-13195, -476, -15, -11, -4, -3, -2, -1, 0, 1],
     [{incorrect_cases, Cases} | Config].
 
 end_per_testcase(regular_data_tests, _) ->
