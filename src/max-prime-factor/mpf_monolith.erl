@@ -25,8 +25,10 @@ find_max_prime_factor(RestNumber, PrimeFactor) when RestNumber > 1 ->
     NewRest = sieve_prime_factor(RestNumber, PrimeFactor),
     MaxFactor = find_max_prime_factor(NewRest, PrimeFactor + 1),
     case RestNumber rem PrimeFactor of
-        0 -> max(PrimeFactor, MaxFactor);
-        _ -> MaxFactor
+        0 ->
+            max(PrimeFactor, MaxFactor);
+        _ ->
+            MaxFactor
     end;
 find_max_prime_factor(_, _) ->
     0.

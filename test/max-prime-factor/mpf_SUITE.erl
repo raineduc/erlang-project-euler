@@ -3,68 +3,57 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
--export([all/0, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0]).
 -export([regular_data_tests/1, regular_data_tests_with_map/1, incorrect_data_tests/1]).
 
 all() ->
     [regular_data_tests, regular_data_tests_with_map, incorrect_data_tests].
 
-init_per_testcase(regular_data_tests, Config) ->
-    Cases = [{2, 2}, {3, 3}, {4, 2}, {11, 11}, {476, 17}, {13195, 29}, {600851475143, 6857}],
-    [{regular_cases, Cases} | Config];
-%% Don't use too big numbers, because with map function's version is pretty slow
-init_per_testcase(regular_data_tests_with_map, Config) ->
-    Cases = [{2, 2}, {3, 3}, {4, 2}, {11, 11}, {476, 17}, {13195, 29}],
-    [{regular_cases_with_map, Cases} | Config];
-init_per_testcase(incorrect_data_tests, Config) ->
-    Cases = [-13195, -476, -15, -11, -4, -3, -2, -1, 0, 1],
-    [{incorrect_cases, Cases} | Config].
-
-end_per_testcase(regular_data_tests, _) ->
-    ok;
-end_per_testcase(regular_data_tests_with_map, _) ->
-    ok;
-end_per_testcase(incorrect_data_tests, _) ->
-    ok.
-
-test_regular_case([Case | Tail]) ->
-    {Arg, Expected} = Case,
-    Expected = mpf_monolith:find_mpf(Arg),
-    Expected = mpf_monolith_tailed:find_mpf(Arg),
-    Expected = mpf_modular:find_mpf(Arg),
-    Expected = mpf_modular_infinite_loop:find_mpf(Arg),
-    test_regular_case(Tail);
-test_regular_case([]) ->
-    ok.
-
-test_regular_case_with_map([Case | Tail]) ->
-    {Arg, Expected} = Case,
-    Expected = mpf_modular_with_map:find_mpf(Arg),
-    test_regular_case(Tail);
-test_regular_case_with_map([]) ->
-    ok.
-
-test_incorrect_case([Case | Tail]) ->
-    ?assertError(function_clause, mpf_monolith:find_mpf(Case)),
-    ?assertError(function_clause, mpf_monolith_tailed:find_mpf(Case)),
-    ?assertError(function_clause, mpf_modular:find_mpf(Case)),
-    ?assertError(function_clause, mpf_modular_with_map:find_mpf(Case)),
-    test_incorrect_case(Tail);
-test_incorrect_case([]) ->
-    ok.
-
 %%--------------------------------------------------------------------
 %% TEST CASES
 %%--------------------------------------------------------------------
 
-regular_data_tests(Config) ->
-    Cases = ?config(regular_cases, Config),
-    test_regular_case(Cases).
+%% Common test requires Config argument in test cases
+regular_data_tests(_) ->
+    test_regular_case(2, 2),
+    test_regular_case(3, 3),
+    test_regular_case(4, 2),
+    test_regular_case(11, 11),
+    test_regular_case(476, 17),
+    test_regular_case(13195, 29),
+    test_regular_case(600851475143, 6857).
 
-regular_data_tests_with_map(Config) ->
-    Cases = ?config(regular_cases_with_map, Config),
-    test_regular_case_with_map(Cases).
+regular_data_tests_with_map(_) ->
+    test_regular_case_with_map(2, 2),
+    test_regular_case_with_map(3, 3),
+    test_regular_case_with_map(4, 2),
+    test_regular_case_with_map(11, 11),
+    test_regular_case_with_map(476, 17),
+    test_regular_case_with_map(13195, 29).
 
-incorrect_data_tests(Config) ->
-    Cases = ?config(incorrect_cases, Config),
-    test_incorrect_case(Cases).
+incorrect_data_tests(_) ->
+    test_incorrect_case(-13195),
+    test_incorrect_case(-476),
+    test_incorrect_case(-15),
+    test_incorrect_case(-11),
+    test_incorrect_case(-4),
+    test_incorrect_case(-3),
+    test_incorrect_case(-2),
+    test_incorrect_case(-1),
+    test_incorrect_case(0),
+    test_incorrect_case(1).
+
+test_regular_case(Arg, Expected) ->
+    ?assertEqual(Expected, mpf_monolith:find_mpf(Arg)),
+    ?assertEqual(Expected, mpf_monolith_tailed:find_mpf(Arg)),
+    ?assertEqual(Expected, mpf_modular:find_mpf(Arg)),
+    ?assertEqual(Expected, mpf_modular_infinite_loop:find_mpf(Arg)).
+
+test_regular_case_with_map(Arg, Expected) ->
+    ?assertEqual(Expected, mpf_modular_with_map:find_mpf(Arg)).
+
+test_incorrect_case(Arg) ->
+    ?assertError(function_clause, mpf_monolith:find_mpf(Arg)),
+    ?assertError(function_clause, mpf_monolith_tailed:find_mpf(Arg)),
+    ?assertError(function_clause, mpf_modular:find_mpf(Arg)),
+    ?assertError(function_clause, mpf_modular_with_map:find_mpf(Arg)).
