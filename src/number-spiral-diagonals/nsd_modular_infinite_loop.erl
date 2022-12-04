@@ -8,49 +8,56 @@
 %%%-------------------------------------------------------------------
 -module(nsd_modular_infinite_loop).
 
+-record(inf_list, {producer, last_value}).
+-record(last_value, {last_number, spiral_nth}).
+
 %% API
 -export([sum_diagonals/1]).
 
 sum_diagonals(1) ->
     1;
 sum_diagonals(N) when N > 2, N rem 2 /= 0 ->
-    Quads = take_quads(N div 2),
-    CornerSeq = [1 | lists:flatten(Quads)],
-    fold_seq(CornerSeq).
+    InfList = new_inf_list(),
+    Count = N div 2,
+    Result = 1 + fold_inf_seq(InfList, Count, 0),
+    close_inf_list(InfList),
+    Result.
 
-take_quads(Count) ->
+new_inf_list() ->
     ProducerPid = spawn(fun producer/0),
-    ProducerPid ! {self(), Count},
-    take_next_quad(Count, []).
+    #inf_list{producer = ProducerPid,
+              last_value = #last_value{last_number = 1, spiral_nth = 1}}.
 
-take_next_quad(Count, QuadList) when Count > 0 ->
-    receive
-        [N1, N2, N3, N4] ->
-            take_next_quad(Count - 1, [N4, N3, N2, N1 | QuadList])
-    after 5000 ->
-        exit(timeout)
-    end;
-take_next_quad(_, QuadList) ->
-    QuadList.
+close_inf_list(#inf_list{producer = ProducerPid}) ->
+    ProducerPid ! close.
 
-producer() ->
+take_next_quad(#inf_list{producer = ProducerPid, last_value = LastValue}) ->
+    ProducerPid ! {self(), take_next_quad, LastValue},
     receive
-        {Sender, Count} ->
-            gen_quads(Sender, Count, 1)
+        {Quad, NewLastValue} ->
+            {Quad, #inf_list{producer = ProducerPid, last_value = NewLastValue}}
     after 5000 ->
         exit(timeout)
     end.
 
-gen_quads(SenderPid, Count, CurrentNumber) ->
-    next_quad(SenderPid, 1, Count, CurrentNumber).
+producer() ->
+    receive
+        {Sender, take_next_quad, #last_value{last_number = LastNumber, spiral_nth = Nth}} ->
+            Result = next_quad(Nth, LastNumber),
+            Sender ! Result,
+            producer();
+        close ->
+            closed
+    end.
 
-next_quad(SenderPid, Nth, Count, CurrentNumber) when Count > 0 ->
+next_quad(Nth, CurrentNumber) ->
     Quad = [CurrentNumber + Next * 2 * Nth || Next <- [1, 2, 3, 4]],
-    SenderPid ! Quad,
     [Last | _] = lists:reverse(Quad),
-    next_quad(SenderPid, Nth + 1, Count - 1, Last);
-next_quad(_, _, _, _) ->
-    ok.
+    LastValue = #last_value{last_number = Last, spiral_nth = Nth + 1},
+    {Quad, LastValue}.
 
-fold_seq(Seq) ->
-    lists:sum(Seq).
+fold_inf_seq(InfList, Count, Acc) when Count > 0 ->
+    {Quad, Next} = take_next_quad(InfList),
+    fold_inf_seq(Next, Count - 1, Acc + lists:sum(Quad));
+fold_inf_seq(_, _, Acc) ->
+    Acc.

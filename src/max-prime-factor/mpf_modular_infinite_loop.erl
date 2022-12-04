@@ -8,6 +8,8 @@
 %%%-------------------------------------------------------------------
 -module(mpf_modular_infinite_loop).
 
+-record(inf_list, {producer, last_value}).
+
 %% API
 -export([find_mpf/1]).
 
@@ -16,43 +18,51 @@ find_mpf(2) ->
 find_mpf(3) ->
     3;
 find_mpf(N) when N > 3 ->
-    ProducerPid = spawn(fun producer/0),
-    ProducerPid ! {self(), N},
-    fold_seq(ProducerPid, 0).
+    InfSeq = new_inf_seq(),
+    Result = fold_seq(InfSeq, N, 1),
+    close_inf_list(InfSeq),
+    Result.
 
-producer() ->
+new_inf_seq() ->
+    ProducerPid = spawn(fun producer/0),
+    #inf_list{producer = ProducerPid, last_value = 1}.
+
+close_inf_list(#inf_list{producer = ProducerPid}) ->
+    ProducerPid ! close.
+
+take_next_number(#inf_list{producer = ProducerPid, last_value = LastValue}) ->
+    ProducerPid ! {self(), take_next, LastValue},
     receive
-        {Sender, Number} ->
-            iterate_seq(Number, 2, Sender)
+        Value ->
+            {Value, #inf_list{producer = ProducerPid, last_value = Value}}
     after 5000 ->
         exit(timeout)
     end.
 
-iterate_seq(RestNumber, PrimeFactor, SenderPid)
-    when PrimeFactor * PrimeFactor > RestNumber, RestNumber > 1 ->
-    SenderPid ! RestNumber,
-    SenderPid ! finished;
-iterate_seq(RestNumber, PrimeFactor, SenderPid)
-    when RestNumber > 1, RestNumber rem PrimeFactor == 0 ->
-    NewRest = sieve_prime_factor(RestNumber, PrimeFactor),
-    SenderPid ! PrimeFactor,
-    iterate_seq(NewRest, PrimeFactor + 1, SenderPid);
-iterate_seq(RestNumber, PrimeFactor, SenderPid) when RestNumber > 1 ->
-    iterate_seq(RestNumber, PrimeFactor + 1, SenderPid);
-iterate_seq(_, _, SenderPid) ->
-    SenderPid ! finished.
+producer() ->
+    receive
+        {Sender, take_next, LastValue} ->
+            Sender ! LastValue + 1,
+            producer();
+        close ->
+            closed
+    end.
+
+fold_seq(InfSeq, N, Acc) ->
+    fold_seq(InfSeq, N, Acc, N).
+
+fold_seq(InfSeq, N, Acc, RestNumber) when RestNumber > 1 ->
+    {Value, Next} = take_next_number(InfSeq),
+    case RestNumber rem Value of
+        0 ->
+            fold_seq(Next, N, max(Acc, Value), sieve_prime_factor(RestNumber, Value));
+        _ ->
+            fold_seq(Next, N, Acc, RestNumber)
+    end;
+fold_seq(_, _, Acc, _) ->
+    Acc.
 
 sieve_prime_factor(RestNumber, PrimeFactor) when RestNumber rem PrimeFactor == 0 ->
     sieve_prime_factor(RestNumber div PrimeFactor, PrimeFactor);
 sieve_prime_factor(RestNumber, _) ->
     RestNumber.
-
-fold_seq(Pid, Acc) ->
-    receive
-        X when is_number(X) ->
-            fold_seq(Pid, max(Acc, X));
-        finished ->
-            Acc
-    after 5000 ->
-        exit(timeout)
-    end.
