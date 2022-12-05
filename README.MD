@@ -197,46 +197,61 @@ What is the sum of the numbers on the diagonals in a 1001 by 1001 spiral formed 
    __map_seq__ возвращает список с элементами __{N, IsPrimeFactor}__, __N__ - число в исходной последовательности
 4. __Модульная реализация с имитацией бесконечных списков с помощью Erlang процессов__
     ```erlang
-   -module(mpf_modular_infinite_loop).
-   -author("hrami").
-   
-   %% API
-   -export([find_mpf/1]).
-   
-   find_mpf(2) -> 2;
-   find_mpf(3) -> 3;
+   find_mpf(2) ->
+    2;
+   find_mpf(3) ->
+       3;
    find_mpf(N) when N > 3 ->
-     ProducerPid = spawn(fun producer/0),
-     ProducerPid ! {self(), N},
-     fold_seq(ProducerPid, 0).
+       InfSeq = new_inf_seq(),
+       Result = fold_seq(InfSeq, N, 1),
+       close_inf_list(InfSeq),
+       Result.
+   
+   new_inf_seq() ->
+       ProducerPid = spawn(fun producer/0),
+       #inf_list{producer = ProducerPid, last_value = 1}.
+   
+   close_inf_list(#inf_list{producer = ProducerPid}) ->
+       ProducerPid ! close.
+   
+   take_next_number(#inf_list{producer = ProducerPid, last_value = LastValue}) ->
+       ProducerPid ! {self(), take_next, LastValue},
+       receive
+           Value ->
+               {Value, #inf_list{producer = ProducerPid, last_value = Value}}
+       after 5000 ->
+           exit(timeout)
+       end.
    
    producer() ->
-     receive
-       {Sender, Number} ->
-         iterate_seq(Number, 2, Sender)
-     end.
+       receive
+           {Sender, take_next, LastValue} ->
+               Sender ! LastValue + 1,
+               producer();
+           close ->
+               closed
+       end.
    
-   iterate_seq(RestNumber, PrimeFactor, SenderPid) when PrimeFactor * PrimeFactor > RestNumber, RestNumber > 1 ->
-     SenderPid ! RestNumber,
-     SenderPid ! finished;
-   iterate_seq(RestNumber, PrimeFactor, SenderPid) when RestNumber > 1, RestNumber rem PrimeFactor == 0 ->
-     NewRest = sieve_prime_factor(RestNumber, PrimeFactor),
-     SenderPid ! PrimeFactor,
-     iterate_seq(NewRest, PrimeFactor + 1, SenderPid);
-   iterate_seq(RestNumber, PrimeFactor, SenderPid) when RestNumber > 1 -> iterate_seq(RestNumber, PrimeFactor + 1, SenderPid);
-   iterate_seq(_, _, SenderPid) -> SenderPid ! finished.
+   fold_seq(InfSeq, N, Acc) ->
+       fold_seq(InfSeq, N, Acc, N).
+   
+   fold_seq(InfSeq, N, Acc, RestNumber) when RestNumber > 1 ->
+       {Value, Next} = take_next_number(InfSeq),
+       case RestNumber rem Value of
+           0 ->
+               fold_seq(Next, N, max(Acc, Value), sieve_prime_factor(RestNumber, Value));
+           _ ->
+               fold_seq(Next, N, Acc, RestNumber)
+       end;
+   fold_seq(_, _, Acc, _) ->
+       Acc.
    
    sieve_prime_factor(RestNumber, PrimeFactor) when RestNumber rem PrimeFactor == 0 ->
-     sieve_prime_factor(RestNumber div PrimeFactor, PrimeFactor);
-   sieve_prime_factor(RestNumber, _) -> RestNumber.
-   
-   fold_seq(Pid, Acc) ->
-     receive
-       X when is_number(X) -> fold_seq(Pid, max(Acc, X));
-       finished -> Acc
-     end.
+       sieve_prime_factor(RestNumber div PrimeFactor, PrimeFactor);
+   sieve_prime_factor(RestNumber, _) ->
+       RestNumber.
     ```
-   Процесс __producer()__ отправляет найденные простые множители, атом __finished__ при завершении поиска
+   Процесс __producer()__ отправляет последовательность чисел
 5. __Реализация на языке Go__
    ```go
    func FindMPF(n int) int {
@@ -368,51 +383,56 @@ What is the sum of the numbers on the diagonals in a 1001 by 1001 spiral formed 
    Генерируется последовательность 2,3,4,5…; по которой далее генерируется новая, необходимая для задачи последовательность
 4. __Модульная реализация с имитацией бесконечных списков с помощью Erlang процессов__
    ```erlang
-   -module(nsd_modular_infinite_loop).
-   -author("hrami").
-   
-   %% API
-   -export([sum_diagonals/1]).
-   
-   sum_diagonals(1) -> 1;
+   sum_diagonals(1) ->
+    1;
    sum_diagonals(N) when N > 2, N rem 2 /= 0 ->
-     Quads = take_quads(N div 2),
-     CornerSeq = [1 | lists:flatten(Quads)],
-     fold_seq(CornerSeq).
+       InfList = new_inf_list(),
+       Count = N div 2,
+       Result = 1 + fold_inf_seq(InfList, Count, 0),
+       close_inf_list(InfList),
+       Result.
    
-   take_quads(Count) ->
-     ProducerPid = spawn(fun producer/0),
-     ProducerPid ! {self(), Count},
-     take_next_quad(Count, []).
+   new_inf_list() ->
+       ProducerPid = spawn(fun producer/0),
+       #inf_list{producer = ProducerPid,
+                 last_value = #last_value{last_number = 1, spiral_nth = 1}}.
    
-   take_next_quad(Count, QuadList) when Count > 0 ->
-     receive
-       [N1, N2, N3, N4] -> take_next_quad(Count - 1, [N4, N3, N2, N1 | QuadList])
-     end;
-   take_next_quad(_, QuadList) -> QuadList.
+   close_inf_list(#inf_list{producer = ProducerPid}) ->
+       ProducerPid ! close.
    
+   take_next_quad(#inf_list{producer = ProducerPid, last_value = LastValue}) ->
+       ProducerPid ! {self(), take_next_quad, LastValue},
+       receive
+           {Quad, NewLastValue} ->
+               {Quad, #inf_list{producer = ProducerPid, last_value = NewLastValue}}
+       after 5000 ->
+           exit(timeout)
+       end.
    
    producer() ->
-     receive
-       {Sender, Count} -> gen_quads(Sender, Count, 1)
-     end.
+       receive
+           {Sender, take_next_quad, #last_value{last_number = LastNumber, spiral_nth = Nth}} ->
+               Result = next_quad(Nth, LastNumber),
+               Sender ! Result,
+               producer();
+           close ->
+               closed
+       end.
    
+   next_quad(Nth, CurrentNumber) ->
+       Quad = [CurrentNumber + Next * 2 * Nth || Next <- [1, 2, 3, 4]],
+       [Last | _] = lists:reverse(Quad),
+       LastValue = #last_value{last_number = Last, spiral_nth = Nth + 1},
+       {Quad, LastValue}.
    
-   gen_quads(SenderPid, Count, CurrentNumber) ->
-     next_quad(SenderPid, 1, Count, CurrentNumber).
-   
-   next_quad(SenderPid, Nth, Count, CurrentNumber) when Count > 0 ->
-     Quad = [CurrentNumber + Next * 2 * Nth || Next <- [1, 2, 3, 4]],
-     SenderPid ! Quad,
-     [Last|_] = lists:reverse(Quad),
-     next_quad(SenderPid, Nth + 1, Count - 1, Last);
-   next_quad(_, _, _, _) -> ok.
-   
-   fold_seq(Seq) -> lists:sum(Seq).
+   fold_inf_seq(InfList, Count, Acc) when Count > 0 ->
+       {Quad, Next} = take_next_quad(InfList),
+       fold_inf_seq(Next, Count - 1, Acc + lists:sum(Quad));
+   fold_inf_seq(_, _, Acc) ->
+       Acc.
    ```
 
-   Процессор producer() отправляет список элементов по углам каждой спирали, при этом и получатель,
-   и отправитель знают, сколько должно быть отправлено списков
+   Процессор producer() отправляет список элементов по углам запрошенной спирали
 5. __Реализация на языке Go__
    ```go
    func sumDiagonals(n int) int {
